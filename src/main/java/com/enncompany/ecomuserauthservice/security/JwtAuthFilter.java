@@ -17,6 +17,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
   public static final String TOKEN_INFO_ATTRIBUTE = "tokenInfo";
   private static final String LOGIN_PATH = "/api/auth/login";
+  private static final String USER_INFO_PATH = "/api/user-info";
+  private static final String API_DOCS_PATH = "/api-docs";
   private static final String BEARER = "Bearer ";
 
   private final JwtService jwtService;
@@ -27,7 +29,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    return LOGIN_PATH.equals(request.getRequestURI());
+    String uri = request.getRequestURI();
+    return LOGIN_PATH.equals(uri)
+        || API_DOCS_PATH.equals(uri)
+        || ("POST".equals(request.getMethod()) && USER_INFO_PATH.equals(uri));
   }
 
   @Override

@@ -30,6 +30,29 @@ class JwtAuthFilterTest {
   }
 
   @Test
+  void apiDocsPathSkipsFilter() throws Exception {
+    MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api-docs");
+    MockHttpServletResponse res = new MockHttpServletResponse();
+    filter.doFilter(req, res, chain);
+    verify(chain).doFilter(req, res);
+    verifyNoInteractions(jwtService);
+  }
+
+  @Test
+  void userInfoCreateSkipsFilter() throws Exception {
+    MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/user-info");
+    MockHttpServletResponse res = new MockHttpServletResponse();
+    filter.doFilter(req, res, chain);
+    verify(chain).doFilter(req, res);
+    verifyNoInteractions(jwtService);
+  }
+
+  @Test
+  void userInfoUpdateStillRequiresToken() throws Exception {
+    assertUnauthorized(new MockHttpServletRequest("PUT", "/api/user-info/1"));
+  }
+
+  @Test
   void validTokenPassesAndSetsAttribute() throws Exception {
     TokenInfo info = new TokenInfo(1L, "bob", 2, Instant.now());
     when(jwtService.validate("tok")).thenReturn(Optional.of(info));
