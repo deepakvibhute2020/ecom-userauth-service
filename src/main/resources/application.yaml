@@ -1,0 +1,17 @@
+server:
+  port: 8091
+spring:
+  application:
+    name: ecom-userauth-service
+app:
+  masterdata:
+    base-url: http://localhost:8092
+  jwt:
+    # Base64-encoded key, at least 32 bytes. Override with JWT_SECRET in real environments.
+    secret: ${JWT_SECRET:ZWNvbS11c2VyYXV0aC1zZXJ2aWNlLWRldi1vbmx5LXNlY3JldC1rZXktMzItYnl0ZXM=}
+    issuer: ecom-userauth-service
+    expiration: 1d
+  security:
+    # Base64 AES key (16, 24 or 32 bytes) shared with clients that encrypt the login password.
+    # Override with PASSWORD_ENCRYPTION_KEY in real environments.
+    password-key: ${PASSWORD_ENCRYPTION_KEY:ZWNvbS1sb2dpbi1rZXktMQ==}
