@@ -1,0 +1,90 @@
+# Secrets (create once, never commit values):
+#   kubectl -n ecom-test create secret generic ecom-jwt --from-literal=secret="<Base64 secret, >= 32 bytes>"
+#   kubectl -n ecom-test create secret generic ecom-password-key --from-literal=key="<Base64 AES key, 16/24/32 bytes>"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecom-userauth-service
+  namespace: ecom-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ecom-userauth-service
+  template:
+    metadata:
+      labels:
+        app: ecom-userauth-service
+    spec:
+      containers:
+        - name: ecom-userauth-service
+          image: rvin2026/ecom-userauth-service:0.0.1-SNAPSHOT
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8091
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:mysql://host.minikube.internal:3308/rvindb?createDatabaseIfNotExist=true
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: ecom-db
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ecom-db
+                  key: password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ecom-jwt
+                  key: secret
+            - name: PASSWORD_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ecom-password-key
+                  key: key
+          resources:
+            requests: { cpu: 250m, memory: 384Mi }
+            limits: { memory: 768Mi }
+          readinessProbe:
+            tcpSocket:
+              port: 8091
+            initialDelaySeconds: 20
+          livenessProbe:
+            tcpSocket:
+              port: 8091
+            initialDelaySeconds: 40
+---
+# ClusterIP only: reached through the gateway.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ecom-userauth-service
+  namespace: ecom-test
+spec:
+  type: ClusterIP
+  selector:
+    app: ecom-userauth-service
+  ports:
+    - port: 8091
+      targetPort: 8091
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ecom-userauth-service
+  namespace: ecom-test
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ecom-userauth-service
+  minReplicas: 1
+  maxReplicas: 1
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 80 }

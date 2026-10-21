@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.client.RestClient;
 
 class ConfigTest {
 
@@ -25,11 +24,5 @@ class ConfigTest {
   void appConfigCreatesArgon2PasswordEncoder() {
     var encoder = new AppConfig().passwordEncoder();
     assertThat(encoder.matches("pw", encoder.encode("pw"))).isTrue();
-  }
-
-  @Test
-  void appConfigCreatesRestClient() {
-    RestClient client = new AppConfig().masterdataRestClient("http://localhost:1");
-    assertThat(client).isNotNull();
   }
 }

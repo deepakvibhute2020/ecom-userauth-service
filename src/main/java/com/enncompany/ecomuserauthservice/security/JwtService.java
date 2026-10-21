@@ -32,9 +32,9 @@ public class JwtService {
   public String generate(UserInfoDto user, Instant issuedAt, Instant expiresAt) {
     return Jwts.builder()
         .issuer(properties.issuer())
-        .subject(user.loginId())
-        .claim("userId", user.id())
-        .claim("userType", user.userType())
+        .subject(user.getLoginId())
+        .claim("userId", user.getId())
+        .claim("userType", user.getUserType().getCode())
         .issuedAt(Date.from(issuedAt))
         .expiration(Date.from(expiresAt))
         .signWith(key)

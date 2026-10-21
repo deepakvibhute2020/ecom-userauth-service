@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.enncompany.ecomuserauthservice.config.JwtProperties;
 import com.enncompany.ecomuserauthservice.dto.UserInfoDto;
+import com.enncompany.ecomuserauthservice.enums.UserType;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -21,7 +22,15 @@ class JwtServiceTest {
 
   private final JwtService service =
       new JwtService(new JwtProperties(SECRET, "iss", Duration.ofDays(1)));
-  private final UserInfoDto user = new UserInfoDto(7L, "bob", 2, "hash", "b@x.com", true);
+  private final UserInfoDto user = user();
+
+  private static UserInfoDto user() {
+    UserInfoDto u = new UserInfoDto();
+    u.setId(7L);
+    u.setLoginId("bob");
+    u.setUserType(UserType.CUSTOMER);
+    return u;
+  }
 
   @Test
   void expiryIsConfiguredDuration() {

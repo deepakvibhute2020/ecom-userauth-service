@@ -3,9 +3,14 @@ server:
 spring:
   application:
     name: ecom-userauth-service
+  datasource:
+    url: jdbc:mysql://localhost:3308/rvindb?createDatabaseIfNotExist=true
+    username: ${DB_USERNAME:rvin}
+    password: ${DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: update
 app:
-  masterdata:
-    base-url: http://localhost:8092
   jwt:
     # Base64-encoded key, at least 32 bytes. Override with JWT_SECRET in real environments.
     secret: ${JWT_SECRET:ZWNvbS11c2VyYXV0aC1zZXJ2aWNlLWRldi1vbmx5LXNlY3JldC1rZXktMzItYnl0ZXM=}

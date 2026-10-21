@@ -7,15 +7,18 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.enncompany.ecomuserauthservice.client.MasterDataClient;
 import com.enncompany.ecomuserauthservice.dto.AuthDtos.ErrorResponse;
 import com.enncompany.ecomuserauthservice.dto.AuthDtos.LoginRequest;
 import com.enncompany.ecomuserauthservice.dto.AuthDtos.LoginResponse;
 import com.enncompany.ecomuserauthservice.dto.AuthDtos.TokenInfo;
-import com.enncompany.ecomuserauthservice.dto.UserInfoDto;
+import com.enncompany.ecomuserauthservice.entity.UserInfo;
+import com.enncompany.ecomuserauthservice.enums.UserType;
 import com.enncompany.ecomuserauthservice.security.JwtService;
 import com.enncompany.ecomuserauthservice.security.PasswordDecryptor;
+import com.enncompany.ecomuserauthservice.userinfo.mapper.UserInfoMapper;
+import com.enncompany.ecomuserauthservice.userinfo.repository.UserInfoRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
@@ -23,12 +26,24 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 class AuthControllerTest {
 
-  private final MasterDataClient client = mock(MasterDataClient.class);
+  private final UserInfoRepository repository = mock(UserInfoRepository.class);
   private final JwtService jwt = mock(JwtService.class);
   private final PasswordDecryptor decryptor = mock(PasswordDecryptor.class);
   private final PasswordEncoder encoder = mock(PasswordEncoder.class);
-  private final AuthController controller = new AuthController(client, jwt, decryptor, encoder);
-  private final UserInfoDto user = new UserInfoDto(1L, "bob", 2, "hash", "b@x.com", true);
+  private final AuthController controller =
+      new AuthController(repository, new UserInfoMapper(), jwt, decryptor, encoder);
+  private final UserInfo user = user();
+
+  private static UserInfo user() {
+    UserInfo u = new UserInfo();
+    u.setId(1L);
+    u.setLoginId("bob");
+    u.setUserType(UserType.CUSTOMER);
+    u.setUserPass("hash");
+    u.setEmailId("b@x.com");
+    u.setActive(true);
+    return u;
+  }
 
   private String message(LoginRequest r) {
     return ((ErrorResponse) controller.login(r).getBody()).message();
@@ -41,7 +56,7 @@ class AuthControllerTest {
   @Test
   void loginSuccess() {
     Instant exp = Instant.now().plusSeconds(60);
-    when(client.findByLoginId("bob")).thenReturn(Optional.of(user));
+    when(repository.findByLoginIdAndActiveTrue("bob")).thenReturn(List.of(user));
     when(decryptor.decrypt("enc")).thenReturn(Optional.of("plain"));
     when(encoder.matches("plain", "hash")).thenReturn(true);
     when(jwt.expiryFor(any())).thenReturn(exp);
@@ -54,7 +69,8 @@ class AuthControllerTest {
     assertThat(body.token()).isEqualTo("tok");
     assertThat(body.tokenType()).isEqualTo("Bearer");
     assertThat(body.expiresAt()).isEqualTo(exp);
-    assertThat(body.user()).isEqualTo(user);
+    assertThat(body.user().getLoginId()).isEqualTo("bob");
+    assertThat(body.user().getUserType()).isEqualTo(UserType.CUSTOMER);
   }
 
   @Test
@@ -64,42 +80,27 @@ class AuthControllerTest {
     assertThat(message(new LoginRequest("bob", null))).contains("required");
     assertThat(status(new LoginRequest("bob", null))).isEqualTo(400);
     assertThat(status(new LoginRequest("bob", " "))).isEqualTo(400);
-    verify(client, never()).findByLoginId(any());
+    verify(repository, never()).findByLoginIdAndActiveTrue(any());
   }
 
   @Test
-  void unknownUserUnauthorized() {
-    when(client.findByLoginId("bob")).thenReturn(Optional.empty());
+  void unknownOrInactiveUserUnauthorized() {
+    when(repository.findByLoginIdAndActiveTrue("bob")).thenReturn(List.of());
     assertThat(status(new LoginRequest("bob", "enc"))).isEqualTo(401);
     assertThat(message(new LoginRequest("bob", "enc"))).isEqualTo("User not found");
     verify(decryptor, never()).decrypt(any());
   }
 
   @Test
-  void inactiveUserUnauthorized() {
-    when(client.findByLoginId("bob"))
-        .thenReturn(Optional.of(new UserInfoDto(1L, "bob", 2, "hash", null, false)));
-    assertThat(status(new LoginRequest("bob", "enc"))).isEqualTo(401);
-  }
-
-  @Test
   void undecryptablePasswordUnauthorized() {
-    when(client.findByLoginId("bob")).thenReturn(Optional.of(user));
+    when(repository.findByLoginIdAndActiveTrue("bob")).thenReturn(List.of(user));
     when(decryptor.decrypt("enc")).thenReturn(Optional.empty());
     assertThat(status(new LoginRequest("bob", "enc"))).isEqualTo(401);
   }
 
   @Test
-  void missingHashUnauthorized() {
-    when(client.findByLoginId("bob"))
-        .thenReturn(Optional.of(new UserInfoDto(1L, "bob", 2, null, null, true)));
-    when(decryptor.decrypt("enc")).thenReturn(Optional.of("plain"));
-    assertThat(status(new LoginRequest("bob", "enc"))).isEqualTo(401);
-  }
-
-  @Test
   void wrongPasswordUnauthorized() {
-    when(client.findByLoginId("bob")).thenReturn(Optional.of(user));
+    when(repository.findByLoginIdAndActiveTrue("bob")).thenReturn(List.of(user));
     when(decryptor.decrypt("enc")).thenReturn(Optional.of("plain"));
     when(encoder.matches("plain", "hash")).thenReturn(false);
     assertThat(status(new LoginRequest("bob", "enc"))).isEqualTo(401);
